@@ -3,7 +3,6 @@ import discord
 from discord.ext import commands
 import random
 import string
-import mysql.connector as mysql
 import time
 from pprint import pprint
 import ssl
