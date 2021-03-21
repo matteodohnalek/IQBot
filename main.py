@@ -358,7 +358,7 @@ if botdb:
                     sql_delete_battle = "DELETE FROM activebattle WHERE guild_id = " + str(message.guild.id) + " AND challenger_id = " + str(activebattle["challenger_id"]) + " AND opponent_id = " + str(activebattle["opponent_id"])
                     botdbc.execute(sql_delete_battle)
                     botdb.commit()
-                    response=discord.Embed(title="Tie!", color=0xb00000)
+                    response=discord.Embed(title="Draw!", color=0xb00000)
                     response.set_author(name=message.author.name,icon_url=message.author.avatar_url)
                     response.add_field(name="🔴" + activebattle["challenger_name"] + " vs 🔵" + activebattle["opponent_name"], value=field_send, inline=True)
                     response.set_footer(text="Want your own battle? !tictactoe @USERNAME")
