@@ -288,26 +288,21 @@ if botdb:
                 tie = False
                 tie_number = 0
                 for i in data["row1"]:
-                    print(i)
                     if not tie:
                         if i == "0":
                             tie_number += 1
                 for ii in data["row2"]:
-                    print(ii)
                     if not tie:
                         if ii == "0":
                             tie_number += 1
                 for iii in data["row3"]:
-                    print(iii)
                     if not tie:
                         if iii == "0":
                             tie_number += 1
-                print(tie_number)
                 if tie_number == 0:
                     tie = True
                 else:
                     tie = False
-                print(tie)
 
                 ### END for check if somebody has won!
 
@@ -376,7 +371,7 @@ if botdb:
                     response = ""
                 else:
                     return
- 
+
         elif message.content.startswith("!listroles"):
             await message.add_reaction("✅")
             guild = client.get_guild(message.guild.id)
@@ -398,7 +393,6 @@ if botdb:
         if payload.message_id != react_to_get_role_msg:
             return
         else:
-            print(payload)
             message = await client.get_channel(payload.channel_id).fetch_message(payload.message_id)
             user = await client.get_user(payload.user_id)
             await message.add_reaction("✅")
