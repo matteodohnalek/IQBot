@@ -88,6 +88,7 @@ if botdb:
         if message.content.startswith("!tictactoe"):
             arg1 = (message.content).replace("!tictactoe ","")
             skipcheckuser = False
+            error = False
             if "accept" in arg1 and not "@" in arg1:
                 skipcheckuser = True
                 botdbc.execute("SELECT challenger_id FROM battlerequests WHERE guild_id = " + str(message.guild.id) + " AND opponent_id = " + str(message.author.id))
