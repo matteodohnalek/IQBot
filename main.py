@@ -187,7 +187,7 @@ if botdb:
                 error_msg = ""
                 data  = json.loads(activebattle["json_field"])
 
-                if message.content.startswith("A"):
+                if message.content.startswith("A") and len(message.content) == 2:
                     if message.content.endswith("1"):
                         if data["row1"][0] == "0":
                             if activebattle["turn_color"] == "blue":
@@ -218,7 +218,7 @@ if botdb:
                     else:
                         skip = True
 
-                elif message.content.startswith("B"):
+                elif message.content.startswith("B") and len(message.content) == 2:
                     if message.content.endswith("1"):
                         if data["row2"][0] == "0":
                             if activebattle["turn_color"] == "blue":
@@ -249,7 +249,7 @@ if botdb:
                     else:
                         skip = True
 
-                elif message.content.startswith("C"):
+                elif message.content.startswith("C") and len(message.content) == 2:
                     if message.content.endswith("1"):
                         if data["row3"][0] == "0":
                             if activebattle["turn_color"] == "blue":
@@ -279,6 +279,10 @@ if botdb:
                             error_msg = "no"
                     else:
                         skip = True
+                else:
+                    error = True
+                    error_msg = "No"
+
                         ### Check if somebody has won!
                 if data["row1"][0] == "1" and data["row1"][1] == "1" and data["row1"][2] == "1" or data["row2"][0] == "1" and data["row2"][1] == "1" and data["row2"][2] == "1" or data["row3"][0] == "1" and data["row3"][1] == "1" and data["row3"][2] == "1" or data["row1"][0] == "1" and data["row2"][1] == "1" and data["row3"][2] == "1" or data["row1"][2] == "1" and data["row2"][1] == "1" and data["row3"][0] == "1":
                     win = True
