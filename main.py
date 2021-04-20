@@ -377,7 +377,7 @@ if botdb:
                 else:
                     return
 
-        elif message.content.startswith("!listroles"):
+        elif message.content == "!listroles":
             await message.add_reaction("✅")
             guild = client.get_guild(message.guild.id)
             guild_roles = []

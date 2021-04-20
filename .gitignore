@@ -1,1 +1,7 @@
 credentials.py
+iqbot.sql
+iqbot.sqlite
+.gitignore
+.gitmodules
+.vscode
+__pycache__
