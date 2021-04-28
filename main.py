@@ -17,31 +17,9 @@ if botdb:
     def mention(author_id):
         return "<@" + str(author_id) + ">"
     
-    ## Leeres Feld erstellen
-    def emptyfield():
-        emptyrows = '{"row1": ["0", "0", "0"], "row2": ["0", "0", "0"], "row3": ["0", "0", "0"]}'
-        data  = json.loads(emptyrows)
-        finished_message = ""
-        count = 0
-        for rows in data:
-
-            for i in data[rows]:
-
-                if i == "0":
-
-                    if count == 2:
-
-                        finished_message+="| ⚪ |\n"
-                        count = 0
-
-                    else:
-                        finished_message+="| ⚪ "
-                        count+=1
-
-        return "" + finished_message
-        
     ## Ein Feld das anzeigt werden kann aus dem JSON erzeugen
-    def field(data, count):
+    def field(data):
+        count = 0
         finished_message = ""
 
         for rows in data:
@@ -142,9 +120,6 @@ if botdb:
                         user1 = await client.fetch_user(battlerequest["challenger_id"])
                         user2 = message.author
 
-                        # Erstelle Leeres Feld mit emptyfield funktion
-                        empty_field = emptyfield()
-
                         # Fügt hinzu, wer Challanger (c) und wer Oponent (o)
                         starterlist = ["o", "c"]
                         starter = random.choice(starterlist)
@@ -168,6 +143,7 @@ if botdb:
 
                         # leeres Feld wird als json festgelegt
                         empty_json_field = '{"row1": ["0", "0", "0"], "row2": ["0", "0", "0"], "row3": ["0", "0", "0"]}'
+                        empty_field = field(json.loads(empty_json_field))
 
                         # Alle Informationen werden in as Aktive Battle Datenbank geschrieben
                         sql_battle = "INSERT INTO activebattle (guild_id, opponent_id, challenger_id, json_field, turn_id, opponent_name, challenger_name, turn_name, turn_color) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
@@ -202,48 +178,49 @@ if botdb:
                 
                 else:
                     # Hier wird geprüft ob der Nutzer tatsälich auf dem DiscordServer ist u. existiert.
-                    if await message.guild.fetch_member(arg1) is not None:
+                    try:
+                        if await message.guild.fetch_member(arg1) is not None:
 
-                        # Hier wird festgelegt welcher Nuitzer welcher ist (SINN????)
-                        user1 = await client.fetch_user(arg1)
-                        user2 = message.author
+                            # Hier wird festgelegt welcher Nuitzer welcher ist (SINN????)
+                            user1 = await client.fetch_user(arg1)
+                            user2 = message.author
 
-                        # Hier wird in der Datenbank nachgeschaut, ob der Nutzer schon eine aktive Anfrage hat
-                        botdbc.execute("SELECT challenger_id FROM battlerequests WHERE guild_id = " + str(message.guild.id) + " AND opponent_id = " + str(message.author.id))
-                        check_battle = botdbc.fetchone()
+                            # Hier wird in der Datenbank nachgeschaut, ob der Nutzer schon eine aktive Anfrage hat
+                            botdbc.execute("SELECT challenger_id FROM battlerequests WHERE guild_id = " + str(message.guild.id) + " AND opponent_id = " + str(message.author.id))
+                            check_battle = botdbc.fetchone()
 
-                        # Wenn der Nutzer keine Anfrage hat, dann
-                        if check_battle is None:
+                            # Wenn der Nutzer keine Anfrage hat, dann
+                            if check_battle is None:
 
-                            # Check ob Nutzer versucht sich selbst eine Anfrage zu schauen
-                            if user1.id == user2.id:
-                                error = "You cant send yourself a battle request!"
+                                # Check ob Nutzer versucht sich selbst eine Anfrage zu schauen
+                                if user1.id == user2.id:
+                                    error = "You cant send yourself a battle request!"
 
-                            # Der Nutzer ist ok und darf ein Battle erstellen!
-                            else: 
+                                # Der Nutzer ist ok und darf ein Battle erstellen!
+                                else: 
 
-                                # Nachricht wird als Embed erstellt und geschickt
-                                response=discord.Embed(title="Challange", color=0x00ff00)
-                                response.add_field(name= user2.name + " vs " + user1.name, value="Their battle will be legendary!", inline=False)
-                                response.add_field(name="To accept this battle:", value="!tictactoe accept", inline=False)
-                                response.set_author(name=message.author.name,icon_url=message.author.avatar_url)
-                                await message.channel.send(embed = response)
-                                response = ""
+                                    # Nachricht wird als Embed erstellt und geschickt
+                                    response=discord.Embed(title="Challange", color=0x00ff00)
+                                    response.add_field(name= user2.name + " vs " + user1.name, value="Their battle will be legendary!", inline=False)
+                                    response.add_field(name="To accept this battle:", value="!tictactoe accept", inline=False)
+                                    response.set_author(name=message.author.name,icon_url=message.author.avatar_url)
+                                    await message.channel.send(embed = response)
+                                    response = ""
 
-                                # Die Anfrage wird in die Datenbank aufgenommen
-                                error = False
-                                sql_battlerequest = "INSERT INTO battlerequests (guild_id, opponent_id, challenger_id) VALUES (%s, %s, %s)"
-                                val_battlerequest = (message.guild.id, user1.id, user2.id)
-                                botdbc.execute(sql_battlerequest, val_battlerequest)
-                                botdb.commit()
+                                    # Die Anfrage wird in die Datenbank aufgenommen
+                                    error = False
+                                    sql_battlerequest = "INSERT INTO battlerequests (guild_id, opponent_id, challenger_id) VALUES (%s, %s, %s)"
+                                    val_battlerequest = (message.guild.id, user1.id, user2.id)
+                                    botdbc.execute(sql_battlerequest, val_battlerequest)
+                                    botdb.commit()
 
-                        # Falls der Nutzer bereits eine Anfrage hat        
-                        else:
-                            error = "This user is currently in a battle!"
-                    
-                    # Falls der Nutzer nicht gefunden wurde
-                    else:
-                        error = "User not found"
+                            # Falls der Nutzer bereits eine Anfrage hat        
+                            else:
+                                error = "This user is currently in a battle!"
+                        
+                        # Falls der Nutzer nicht gefunden wurde
+                    except:
+                        error = "Not a User!"
             
             # Hier werden Nachrichten verschickt die mit der Variable "error vorher festgelegt wurden"
 
@@ -475,7 +452,7 @@ if botdb:
 
                 if not skip and not win and not error and not tie:
                     # Tauschen der Rollen jenachdem wer dran ist (pls change)
-                    field_send = field(data, 0)
+                    field_send = field(data)
 
                     if activebattle["turn_id"] == activebattle["opponent_id"]:
                         turn_name = activebattle["challenger_name"]
@@ -514,7 +491,7 @@ if botdb:
                 elif not skip and win and not error and not tie:
 
                     # Tausche Rollen, je nach dem Wer gerade dran ist
-                    field_send = field(data, 0)
+                    field_send = field(data)
                     if activebattle["turn_id"] == activebattle["opponent_id"]:
                         turn_name = activebattle["challenger_name"]
                     elif activebattle["turn_id"] == activebattle["challenger_id"]:
@@ -536,7 +513,7 @@ if botdb:
                 # Falls Unentschieden    
                 elif tie:
                     # Tausche Rollen je nach dem wer dran ist
-                    field_send = field(data, 0)
+                    field_send = field(data)
                     if activebattle["turn_id"] == activebattle["opponent_id"]:
                         turn_name = activebattle["challenger_name"]
                     elif activebattle["turn_id"] == activebattle["challenger_id"]:
