@@ -142,7 +142,7 @@ if botdb:
                         botdb.commit()
 
                         # leeres Feld wird als json festgelegt
-                        empty_json_field = '{"row1": ["0", "0", "0"], "row2": ["0", "0", "0"], "row3": ["0", "0", "0"]}'
+                        empty_json_field = '{"A": {"1": "0", "2": "0", "3": "0"}, "B": {"1": "0", "2": "0", "3": "0"}, "C": {"1": "0", "2": "0", "3": "0"}}'
                         empty_field = field(json.loads(empty_json_field))
 
                         # Alle Informationen werden in as Aktive Battle Datenbank geschrieben
@@ -232,12 +232,12 @@ if botdb:
                 response.set_author(name=message.author.name,icon_url=message.author.avatar_url)
                 await message.channel.send(embed = response)
                 response = ""
-
             return
         
         # Spielsteuerung
-        elif message.content == "A1" or "A2" or "A3" or "B1" or "B2" or "B3" or "C1" or "C2" or "C3":
-
+        uppermsg = message.content
+        if uppermsg == "A1" or "A2" or "A3" or "B1" or "B2" or "B3" or "C1" or "C2" or "C3":
+            
             # In der Datenbank wird geschaut ob der NachrichtenAutor auch ein aktives Battle auf der Guild hat
             botdbc.execute("SELECT * FROM activebattle WHERE guild_id = " + str(message.guild.id) + " AND turn_id = " + str(message.author.id))
             activebattle = botdbc.fetchone()
@@ -256,186 +256,46 @@ if botdb:
                 data  = json.loads(activebattle["json_field"])
 
                 # Spiel wird ausgewertet :/ BITTE VERKÜRZEN
-                if message.content.startswith("A") and len(message.content) == 2:
 
-                    if message.content.endswith("1"):
-
-                        if data["row1"][0] == "0":
-
-                            if activebattle["turn_color"] == "blue":
-                                data["row1"][0] = "2"
-
-                            elif activebattle["turn_color"] == "red":
-                                data["row1"][0] = "1"
-
-                        else:
-                            # Verhindert platzieren auf einem bereits belegtem Feld
-                            error = True
-                            error_msg = "no"
-
-                    elif message.content.endswith("2"):
-
-                        if data["row1"][1] == "0":
-
-                            if activebattle["turn_color"] == "blue":
-                                data["row1"][1] = "2"
-
-                            elif activebattle["turn_color"] == "red":
-                                data["row1"][1] = "1"
-
-                        else:
-                            # Verhindert platzieren auf einem bereits belegtem Feld
-                            error = True
-                            error_msg = "no"
-
-                    elif message.content.endswith("3"):
-
-                        if data["row1"][2] == "0":
-
-                            if activebattle["turn_color"] == "blue":
-                                data["row1"][2] = "2"
-
-                            elif activebattle["turn_color"] == "red":
-                                data["row1"][2] = "1"
-
-                        else:
-                            # Verhindert platzieren auf einem bereits belegtem Feld
-                            error = True
-                            error_msg = "no"
-
+            if len(message.content) != 2:
+                error_msg = "Nachricht zu lang"
+                error = True
+            else:
+                if data[uppermsg[0]][uppermsg[1]] == "0":
+                    if activebattle["turn_color"] == "blue":
+                        data[uppermsg[0]][uppermsg[1]] = "2"
                     else:
-                        skip = True
-
-                elif message.content.startswith("B") and len(message.content) == 2:
-
-                    if message.content.endswith("1"):
-
-                        if data["row2"][0] == "0":
-
-                            if activebattle["turn_color"] == "blue":
-                                data["row2"][0] = "2"
-
-                            elif activebattle["turn_color"] == "red":
-                                data["row2"][0] = "1"
-
-                        else:
-                            # Verhindert platzieren auf einem bereits belegtem Feld
-                            error = True
-                            error_msg = "no"
-
-                    elif message.content.endswith("2"):
-
-                        if data["row2"][1] == "0":
-
-                            if activebattle["turn_color"] == "blue":
-                                data["row2"][1] = "2"
-
-                            elif activebattle["turn_color"] == "red":
-                                data["row2"][1] = "1"
-
-                        else:
-                            # Verhindert platzieren auf einem bereits belegtem Feld
-                            error = True
-                            error_msg = "no"
-
-                    elif message.content.endswith("3"):
-
-                        if data["row2"][2] == "0":
-
-                            if activebattle["turn_color"] == "blue":
-                                data["row2"][2] = "2"
-
-                            elif activebattle["turn_color"] == "red":
-                                data["row2"][2] = "1"
-
-                        else:
-                            # Verhindert platzieren auf einem bereits belegtem Feld
-                            error = True
-                            error_msg = "no"
-
-                    else:
-                        skip = True
-
-                elif message.content.startswith("C") and len(message.content) == 2:
-
-                    if message.content.endswith("1"):
-
-                        if data["row3"][0] == "0":
-
-                            if activebattle["turn_color"] == "blue":
-                                data["row3"][0] = "2"
-
-                            elif activebattle["turn_color"] == "red":
-                                data["row3"][0] = "1"
-
-                        else:
-                            # Verhindert platzieren auf einem bereits belegtem Feld
-                            error = True
-                            error_msg = "no"
-
-                    elif message.content.endswith("2"):
-
-                        if data["row3"][1] == "0":
-
-                            if activebattle["turn_color"] == "blue":
-                                data["row3"][1] = "2"
-
-                            elif activebattle["turn_color"] == "red":
-                                data["row3"][1] = "1"
-
-                        else:
-                            # Verhindert platzieren auf einem bereits belegtem Feld
-                            error = True
-                            error_msg = "no"
-
-                    elif message.content.endswith("3"):
-
-                        if data["row3"][2] == "0":
-
-                            if activebattle["turn_color"] == "blue":
-                                data["row3"][2] = "2"
-
-                            elif activebattle["turn_color"] == "red":
-                                data["row3"][2] = "1"
-
-                        else:
-                            # Verhindert platzieren auf einem bereits belegtem Feld
-                            error = True
-                            error_msg = "no"
-
-                    else:
-                        skip = True
-                        
+                        data[uppermsg[0]][uppermsg[1]] = "1"
                 else:
+                    error_msg = "Nein"
                     error = True
-                    error_msg = "No"
-
+                        
                         ### Check ob jemand gewonnen hat (evtl schöner??)
-                if data["row1"][0] == "1" and data["row1"][1] == "1" and data["row1"][2] == "1" or data["row2"][0] == "1" and data["row2"][1] == "1" and data["row2"][2] == "1" or data["row3"][0] == "1" and data["row3"][1] == "1" and data["row3"][2] == "1" or data["row1"][0] == "1" and data["row2"][1] == "1" and data["row3"][2] == "1" or data["row1"][2] == "1" and data["row2"][1] == "1" and data["row3"][0] == "1":
+                if data["A"]["1"] == "1" and data["A"]["2"] == "1" and data["B"]["3"] == "1" or data["B"]["1"] == "1" and data["B"]["2"] == "1" and data["B"]["3"] == "1" or data["C"]["1"] == "1" and data["C"]["2"] == "1" and data["C"]["3"] == "1" or data["A"]["1"] == "1" and data["B"]["2"] == "1" and data["C"]["3"] == "1" or data["A"]["3"] == "1" and data["B"]["2"] == "1" and data["C"]["1"] == "1":
                     win = True
                     winner_name = activebattle["challenger_name"]
 
-                elif data["row1"][0] == "2" and data["row1"][1] == "2" and data["row1"][2] == "2" or data["row2"][0] == "2" and data["row2"][1] == "2" and data["row2"][2] == "2" or data["row3"][0] == "2" and data["row3"][1] == "2" and data["row3"][2] == "2" or data["row1"][0] == "2" and data["row2"][1] == "2" and data["row3"][2] == "2" or data["row1"][2] == "2" and data["row2"][1] == "2" and data["row3"][0] == "2":
+                elif data["A"]["1"] == "2" and data["A"]["2"] == "2" and data["A"]["3"] == "2" or data["B"]["1"] == "2" and data["B"]["2"] == "2" and data["B"]["3"] == "2" or data["C"]["1"] == "2" and data["C"]["2"] == "2" and data["C"]["2"] == "3" or data["A"]["1"] == "2" and data["B"]["2"] == "2" and data["C"]["3"] == "2" or data["A"]["3"] == "2" and data["B"]["2"] == "2" and data["A"]["1"] == "2":
                     win = True
                     winner_name = activebattle["opponent_name"]
                 
                 tie = False
                 tie_number = 0
-                for i in data["row1"]:
+                for i in data["A"]:
                     
                     if not tie:
 
                         if i == "0":
                             tie_number += 1
 
-                for ii in data["row2"]:
+                for ii in data["B"]:
 
                     if not tie:
 
                         if ii == "0":
                             tie_number += 1
 
-                for iii in data["row3"]:
+                for iii in data["C"]:
                     
                     if not tie:
 
@@ -447,6 +307,7 @@ if botdb:
 
                 else:
                     tie = False
+                tie = False ### TIE TIE TIE TIE
 
                 ### ENDE check ob jemand gewonnen hat
 
