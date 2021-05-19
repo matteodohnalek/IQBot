@@ -21,10 +21,12 @@ if botdb:
     def field(data):
         count = 0
         finished_message = ""
+        print(data)
 
-        for rows in data:
-        
-            for i in data[rows]:
+
+        for key, value in data.items():
+
+            for key2, i in value.items():
 
                 if i == "0":
 
@@ -56,7 +58,7 @@ if botdb:
                     else:
                         finished_message+="| 🔵 "
                         count+=1
-                        
+                    
         return "" + finished_message
 
     client = discord.Client()
@@ -143,6 +145,7 @@ if botdb:
 
                         # leeres Feld wird als json festgelegt
                         empty_json_field = '{"A": {"1": "0", "2": "0", "3": "0"}, "B": {"1": "0", "2": "0", "3": "0"}, "C": {"1": "0", "2": "0", "3": "0"}}'
+
                         empty_field = field(json.loads(empty_json_field))
 
                         # Alle Informationen werden in as Aktive Battle Datenbank geschrieben
@@ -271,13 +274,38 @@ if botdb:
                     error = True
                         
                         ### Check ob jemand gewonnen hat (evtl schöner??)
-                if data["A"]["1"] == "1" and data["A"]["2"] == "1" and data["B"]["3"] == "1" or data["B"]["1"] == "1" and data["B"]["2"] == "1" and data["B"]["3"] == "1" or data["C"]["1"] == "1" and data["C"]["2"] == "1" and data["C"]["3"] == "1" or data["A"]["1"] == "1" and data["B"]["2"] == "1" and data["C"]["3"] == "1" or data["A"]["3"] == "1" and data["B"]["2"] == "1" and data["C"]["1"] == "1":
-                    win = True
-                    winner_name = activebattle["challenger_name"]
+                win = ""
+                abc = "ABC"
+                ott = "123"
+                for i in abc:
+                    if data[i]["1"] == data[i]["2"] == data[i]["3"]:
+                        print("Winner")
+                        if data[i]["1"] and data[i]["2"] and data[i]["3"] == "1":
+                            user = await client.fetch_user(activebattle["challenger_id"])
+                            print(user.name + " has won1!")
+                            winner_name = user.name
+                            win = True
 
-                elif data["A"]["1"] == "2" and data["A"]["2"] == "2" and data["A"]["3"] == "2" or data["B"]["1"] == "2" and data["B"]["2"] == "2" and data["B"]["3"] == "2" or data["C"]["1"] == "2" and data["C"]["2"] == "2" and data["C"]["2"] == "3" or data["A"]["1"] == "2" and data["B"]["2"] == "2" and data["C"]["3"] == "2" or data["A"]["3"] == "2" and data["B"]["2"] == "2" and data["A"]["1"] == "2":
-                    win = True
-                    winner_name = activebattle["opponent_name"]
+                        elif data[i]["1"] and data[i]["2"] and data[i]["3"] == "2":
+                            user = await client.fetch_user(activebattle["opponent_id"])
+                            print(user.name + " has won1!")
+                            winner_name = user.name
+                            win = True
+
+                for ii in ott:
+                    if data["A"][ii] == data["B"][ii] == data["C"][ii]:
+                        print("winner2")
+                        if data["A"][ii] and data["B"][ii] and data["C"][ii] == "1":
+                            user = await client.fetch_user(activebattle["challenger_id"])
+                            print(user.name + " has won2!")
+                            winner_name = user.name
+                            win = True
+                        elif data["A"][ii] and data["B"][ii] and data["C"][ii] == "2":
+                            user = await client.fetch_user(activebattle["opponent_id"])
+                            print(user.name + " has won2!")
+                            winner_name = user.name
+                            win = True
+
                 
                 tie = False
                 tie_number = 0
@@ -353,10 +381,6 @@ if botdb:
 
                     # Tausche Rollen, je nach dem Wer gerade dran ist
                     field_send = field(data)
-                    if activebattle["turn_id"] == activebattle["opponent_id"]:
-                        turn_name = activebattle["challenger_name"]
-                    elif activebattle["turn_id"] == activebattle["challenger_id"]:
-                        turn_name = activebattle["opponent_name"]
 
                     # Lösche Aktives Battle aus der Datenbank
                     sql_delete_battle = "DELETE FROM activebattle WHERE guild_id = " + str(message.guild.id) + " AND challenger_id = " + str(activebattle["challenger_id"]) + " AND opponent_id = " + str(activebattle["opponent_id"])
