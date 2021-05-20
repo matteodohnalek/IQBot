@@ -23,42 +23,29 @@ if botdb:
         finished_message = ""
         print(data)
 
-
         for key, value in data.items():
-
             for key2, i in value.items():
-
                 if i == "0":
-
                     if count == 2:
-
                         finished_message+="| ⚪ |\n"
                         count = 0
-
                     else:
                         finished_message+="| ⚪ "
                         count+=1
-
                 elif i == "1":
-
                     if count == 2:
                         finished_message+="| 🔴 |\n"
                         count = 0
-
                     else:
                         finished_message+="| 🔴 "
                         count+=1
-
                 elif i == "2":
-
                     if count == 2:
                         finished_message+="| 🔵 |\n"
                         count = 0
-
                     else:
                         finished_message+="| 🔵 "
                         count+=1
-                    
         return "" + finished_message
 
     client = discord.Client()
@@ -245,24 +232,19 @@ if botdb:
             botdbc.execute("SELECT * FROM activebattle WHERE guild_id = " + str(message.guild.id) + " AND turn_id = " + str(message.author.id))
             activebattle = botdbc.fetchone()
 
-            if activebattle is None:
+            if activebattle is not None:
                 # Falls kein Aktives Battle vorhanden ist wird die Nachricht einfach ignoriert
-                return
-
-            else:
-                
                 # Variablen werden festgelegt (SINN????)
-                skip = False
                 win = False
-                error = False
-                error_msg = ""
-                data  = json.loads(activebattle["json_field"])
+                error_msg = False
+                data = json.loads(activebattle["json_field"])
 
                 # Spiel wird ausgewertet :/ BITTE VERKÜRZEN
+            else:
+                return
 
-            if len(message.content) != 2:
-                error_msg = "Nachricht zu lang"
-                error = True
+            if activebattle["turn_id"] == message.author.id:
+                return
             else:
                 if data[uppermsg[0]][uppermsg[1]] == "0":
                     if activebattle["turn_color"] == "blue":
@@ -271,75 +253,58 @@ if botdb:
                         data[uppermsg[0]][uppermsg[1]] = "1"
                 else:
                     error_msg = "Nein"
-                    error = True
                         
-                        ### Check ob jemand gewonnen hat (evtl schöner??)
-                win = ""
-                abc = "ABC"
-                ott = "123"
-                for i in abc:
-                    if data[i]["1"] == data[i]["2"] == data[i]["3"]:
-                        print("Winner")
+                ### Check ob jemand gewonnen hat (evtl schöner??)
+                win = False
+                for i in "ABC":
+                    if data[i]["1"] == data[i]["2"] == data[i]["3"] != "0":
                         if data[i]["1"] and data[i]["2"] and data[i]["3"] == "1":
                             user = await client.fetch_user(activebattle["challenger_id"])
-                            print(user.name + " has won1!")
                             winner_name = user.name
                             win = True
 
                         elif data[i]["1"] and data[i]["2"] and data[i]["3"] == "2":
                             user = await client.fetch_user(activebattle["opponent_id"])
-                            print(user.name + " has won1!")
                             winner_name = user.name
                             win = True
 
-                for ii in ott:
-                    if data["A"][ii] == data["B"][ii] == data["C"][ii]:
-                        print("winner2")
+                for ii in "123":
+                    if data["A"][ii] == data["B"][ii] == data["C"][ii] != "0":
                         if data["A"][ii] and data["B"][ii] and data["C"][ii] == "1":
                             user = await client.fetch_user(activebattle["challenger_id"])
-                            print(user.name + " has won2!")
                             winner_name = user.name
                             win = True
                         elif data["A"][ii] and data["B"][ii] and data["C"][ii] == "2":
                             user = await client.fetch_user(activebattle["opponent_id"])
-                            print(user.name + " has won2!")
                             winner_name = user.name
                             win = True
 
+                if data["A"]["1"] == data["B"]["2"] == data["C"]["3"] != "0" or data["A"]["3"] == data["B"]["2"] == data["C"]["1"] != "0":
+                    if data["B"]["2"] == "1":
+                        user = await client.fetch_user(activebattle["challenger_id"])
+                        winner_name = user.name
+                        win = True
+                    elif data["B"]["2"] == "2":
+                        user = await client.fetch_user(activebattle["opponent_id"])
+                        winner_name = user.name
+                        win = True
                 
                 tie = False
                 tie_number = 0
-                for i in data["A"]:
-                    
-                    if not tie:
-
+                counter = int()
+                for key, value in data.items():
+                    for key2, i in value.items():
                         if i == "0":
-                            tie_number += 1
-
-                for ii in data["B"]:
-
-                    if not tie:
-
-                        if ii == "0":
-                            tie_number += 1
-
-                for iii in data["C"]:
-                    
-                    if not tie:
-
-                        if iii == "0":
-                            tie_number += 1
-
-                if tie_number == 0:
+                            tie = False
+                            break
+                        elif i == "1" or "2":
+                            counter+=1
+                if counter == 9:
                     tie = True
-
-                else:
-                    tie = False
-                tie = False ### TIE TIE TIE TIE
 
                 ### ENDE check ob jemand gewonnen hat
 
-                if not skip and not win and not error and not tie:
+                if not win and not error_msg and not tie:
                     # Tauschen der Rollen jenachdem wer dran ist (pls change)
                     field_send = field(data)
 
@@ -377,7 +342,7 @@ if botdb:
 
                 
                 # Battle Win
-                elif not skip and win and not error and not tie:
+                elif win and not error_msg and not tie:
 
                     # Tausche Rollen, je nach dem Wer gerade dran ist
                     field_send = field(data)
@@ -418,7 +383,7 @@ if botdb:
                     response = ""
 
                 # Erstelle und sende Error Nachricht, falls einer aufgetreten sein sollte    
-                elif error:
+                elif error_msg:
                     response=discord.Embed(title="❌ " + error_msg, color=0xff0000)
                     response.set_author(name=message.author.name,icon_url=message.author.avatar_url)
                     await message.channel.send(embed = response)
@@ -428,7 +393,7 @@ if botdb:
         # Andere Antworten auf Nachrichten
         
         # LISTROLES COMMAND (aktuell nicht funktional)
-        elif message.content == "!listroles":
+        if message.content == "!listroles":
             # Füge Haken zu nachricht des sender (als bestätigung)
             await message.add_reaction("✅")
 
@@ -439,7 +404,7 @@ if botdb:
             # Gebe die Rollen umgekehrt aus (umgekehrt weil sie sonst nicht in der Richtung wo es in der Teilnehmerleiste ist ausgegeben werden)
             for role in reversed(guild.roles):
                 # Rollen werden einzeln zu der variable hinzugefügt
-                guild_roles.append(role.name + "    ID:  " + str(role.id) + "\n")
+                guild_roles.append(role.name + "\n")
 
             # Die Antwort wird als Embed mit allen Rollen erstellt und geschickt
             response = discord.Embed(
@@ -453,15 +418,15 @@ if botdb:
             return
 
     ## DEFINETLY NOT FINISHED -> If you react to the configured message with ANY emoji, the bot reacts with a check_mark
-    @client.event
-    async def on_raw_reaction_add(payload):
-        if payload.message_id != react_to_get_role_msg:
-            return
-        else:
-            message = await client.get_channel(payload.channel_id).fetch_message(payload.message_id)
-            user = await client.get_user(payload.user_id)
-            await message.add_reaction("✅")
-            return
+    # @client.event
+    # async def on_raw_reaction_add(payload):
+    #    if payload.message_id != react_to_get_role_msg:
+    #        return
+    #    else:
+    #        message = await client.get_channel(payload.channel_id).fetch_message(payload.message_id)
+    #        user = await client.get_user(payload.user_id)
+    #        await message.add_reaction("✅")
+    #        return
 
     client.run(token)
 else:
