@@ -5,6 +5,15 @@ from credentials import *
 import re
 import json
 import random
+import mysql
+import mysql.connector as mysql
+
+botdb = mysql.connect(
+    host="192.168.55.10",
+    user="iqbot",
+    password=database_password,
+    database="iqbot"
+)
 
 if botdb:
     print("DB Working")
