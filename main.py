@@ -21,10 +21,31 @@ if botdb:
     # Discord Client Init
     client = discord.Client()
 
+    # DISCORD BOT START
+    @client.event
+    async def on_ready():
+        print(client.user)
+
+        # STATUS SETZEN
+        game = discord.Game("mit der API")
+        await client.change_presence(status=discord.Status.online, activity=game)
+
+        # ALLE SERVER AUSGEBEN
+        print('Aktuell auf ' + str(len(client.guilds)) + ' Servern')
+
     # FUNKTIONEN
     def mention(author_id):
         return "<@" + str(author_id) + ">"
     
+    async def send_error_msg(temp_msg, message):
+        response=discord.Embed(title="❌ " + temp_msg, color=0xff0000)
+        response.set_author(name=message.author.name,icon_url=message.author.avatar_url)
+        await message.channel.send(embed = response)
+        response = ""
+        message = ""
+        temp_msg = ""
+        return
+
     ## Ein Feld das anzeigt werden kann aus dem JSON erzeugen
     def field(data):
         count = 0
@@ -55,19 +76,6 @@ if botdb:
                         count+=1
         return "" + finished_message
 
-    client = discord.Client()
-    # DISCORD BOT START
-    @client.event
-    async def on_ready():
-        print(client.user)
-
-        # STATUS SETZEN
-        game = discord.Game("mit der API")
-        await client.change_presence(status=discord.Status.online, activity=game)
-
-        # ALLE SERVER AUSGEBEN
-        print('Aktuell auf ' + str(len(client.guilds)) + ' Servern')
-
     @client.event
     async def on_message(message):
 
@@ -75,6 +83,9 @@ if botdb:
         if message.author == client.user:
             return
             
+        if message.author.bot:
+            return
+        
         # Wenn Nachricht länger als Datenbank Limit ist, wird sie ignoriert!
         if len(message.content) > 254:
             return
@@ -168,6 +179,24 @@ if botdb:
                         await message.channel.send(embed = response)
                         response = ""
 
+            # Battle verlassen
+            elif arg1 == "leave":
+                botdbc.execute("SELECT * FROM activebattle WHERE guild_id = " + str(message.guild.id) + " AND opponent_id = " + str(message.author.id) + " OR challanger_id = " + str(message.author.id))
+                activebattle = botdbc.fetchone()
+
+                if activebattle is not None:
+                    # Falls kein Aktives Battle vorhanden ist wird die Nachricht einfach ignoriert
+                    error_msg = False
+                    opponent = await client.fetch_user(activebattle["opponent_id"])
+                    challanger = await client.fetch_user(activebattle["challanger_id"])
+
+                    sql_delete_battle = "DELETE FROM activebattle WHERE guild_id = " + str(message.guild.id) + " AND challanger_id = " + str(activebattle["challanger_id"]) + " AND opponent_id = " + str(activebattle["opponent_id"])
+                    botdbc.execute(sql_delete_battle)
+                    botdb.commit()
+                    await send_error_msg("You left the battle", message)
+                else:
+                    await send_error_msg("You cant leave any battle", message)
+
             # Eine Anfrage wird geschickt
             else:
 
@@ -229,15 +258,12 @@ if botdb:
             if error_msg:
 
                 # Schickt error Nachricht als Embed
-                response=discord.Embed(title="❌ " + error_msg, color=0xff0000)
-                response.set_author(name=message.author.name,icon_url=message.author.avatar_url)
-                await message.channel.send(embed = response)
-                response = ""
+                await send_error_msg(error_msg, message)
             return
         
         # Spielsteuerung
         uppermsg = (message.content).upper()
-        if "A1" or "A2" or "A3" or "B1" or "B2" or "B3" or "C1" or "C2" or "C3" in uppermsg:
+        if uppermsg == "A1" or "A2" or "A3" or "B1" or "B2" or "B3" or "C1" or "C2" or "C3":
             # In der Datenbank wird geschaut ob der NachrichtenAutor auch ein aktives Battle auf der Guild hat
             botdbc.execute("SELECT * FROM activebattle WHERE guild_id = " + str(message.guild.id) + " AND turn_id = " + str(message.author.id))
             activebattle = botdbc.fetchone()
@@ -248,6 +274,8 @@ if botdb:
                 opponent = await client.fetch_user(activebattle["opponent_id"])
                 challanger = await client.fetch_user(activebattle["challanger_id"])
                 data = json.loads(activebattle["json_field"])
+            else:
+                return
 
             if data[uppermsg[0]][uppermsg[1]] == "0":
                 if activebattle["turn_id"] == str(opponent.id):
@@ -362,10 +390,7 @@ if botdb:
 
             # Erstelle und sende Error Nachricht, falls einer aufgetreten sein sollte    
             elif error_msg:
-                response=discord.Embed(title="❌ " + error_msg, color=0xff0000)
-                response.set_author(name=message.author.name,icon_url=message.author.avatar_url)
-                await message.channel.send(embed = response)
-                response = ""
+                await send_error_msg(error_msg, message)
             return
 
     ## DEFINETLY NOT FINISHED -> If you react to the configured message with ANY emoji, the bot reacts with a check_mark
