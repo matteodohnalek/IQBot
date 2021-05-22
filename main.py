@@ -165,7 +165,7 @@ if botdb:
 
                         # Alle Informationen werden in as Aktive Battle Datenbank geschrieben
                         sql_battle = "INSERT INTO activebattle (guild_id, opponent_id, challanger_id, json_field, turn_id) VALUES (%s, %s, %s, %s, %s)"
-                        val_battle = (message.guild.id, challanger.id, opponent.id, empty_json_field, turn_id)
+                        val_battle = (message.guild.id, opponent.id, challanger.id, empty_json_field, str(turn_id))
                         botdbc.execute(sql_battle, val_battle)
                         botdb.commit()
 
@@ -345,7 +345,7 @@ if botdb:
                 response.set_author(name=message.author.name,icon_url=message.author.avatar_url)
                 response.add_field(name="🔴" + challanger.name + " vs 🔵" + opponent.name, value=field_send, inline=True)
                 response.add_field(name="Usage:", value="| A1 | A2 | A3 |\n| B1 | B2 | B3 |\n| C1 | C2 | C3 |\nTo place your block on a field, write the field number", inline=False)
-                response.add_field(name="Whose turn is it:", value=(await client.fetch_user(activebattle["opponent_id"])).name, inline=False)
+                response.add_field(name="Whose turn is it:", value=(await client.fetch_user(turn_id)).name, inline=False)
                 response.set_footer(text="Want your own battle? !tictactoe @USERNAME")
                 await message.channel.send(embed = response)
                 response = ""
