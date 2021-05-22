@@ -16,7 +16,6 @@ botdb = mysql.connect(
 )
 
 if botdb:
-    print("DB Working")
     botdbc = botdb.cursor(dictionary=True)
 
     # Discord Client Init
@@ -81,7 +80,31 @@ if botdb:
             return
 
         # TICTACTOE Init
-        if message.content.startswith("!tictactoe"):
+
+        # LISTROLES COMMAND (zählt alle Rollen auf einem Server auf)
+        if message.content == "!listroles":
+            # Füge Haken zu nachricht des sender (als bestätigung)
+            await message.add_reaction("✅")
+
+            # Hole alle Rollen auf diesem Server ein
+            guild = client.get_guild(message.guild.id)
+            guild_roles = []
+
+            # Gebe die Rollen umgekehrt aus (umgekehrt weil sie sonst nicht in der Richtung wo es in der Teilnehmerleiste ist ausgegeben werden)
+            for role in reversed(guild.roles):
+                # Rollen werden einzeln zu der variable hinzugefügt
+                guild_roles.append(role.name + "\n")
+
+            # Die Antwort wird als Embed mit allen Rollen erstellt und geschickt
+            response = discord.Embed(
+                title = "List of all roles:",
+                description = ''.join(guild_roles),
+                colour = discord.Colour.blue()
+            )
+            await message.channel.send("Here is a list of all roles on this server",embed = response)
+            response = ""
+
+        elif message.content.startswith("!tictactoe"):
 
             # Der Command "tictactoe" wird von der Nachricht entfernt, damit am Ende nur die Parameter übrig bleiben
             arg1 = (message.content).replace("!tictactoe ","")
@@ -144,10 +167,6 @@ if botdb:
                         response.set_footer(text="Want your own battle? !tictactoe @USERNAME")
                         await message.channel.send(embed = response)
                         response = ""
-                    
-                    # Schlägt an wenn der Nutzer auf dem falschen Server eine Anfrage annehmen will
-                    else:
-                        return
 
             # Eine Anfrage wird geschickt
             else:
@@ -159,11 +178,9 @@ if botdb:
                 # Checkt ob eine Nutzer ID vorhanden ist (falls nicht wird ein error zurück gegeben)
                 if arg1 == "":
                     error_msg = "User not found"
-                    return
                 
                 else:
                     # Hier wird geprüft ob der Nutzer tatsälich auf dem DiscordServer ist u. existiert.
-                    print(arg1)
                     try:
                         if await message.guild.fetch_member(arg1) is not None:
 
@@ -173,7 +190,7 @@ if botdb:
 
                             if opponent.id == challanger.id:
                                 error_msg = "Cant send yourself a battle request!"
-                                return
+
                             # Hier wird in der Datenbank nachgeschaut, ob der Nutzer schon eine aktive Anfrage hat
                             botdbc.execute("SELECT challanger_id FROM battlerequests WHERE guild_id = " + str(message.guild.id) + " AND opponent_id = " + str(message.author.id))
                             check_battle = botdbc.fetchone()
@@ -220,7 +237,7 @@ if botdb:
         
         # Spielsteuerung
         uppermsg = (message.content).upper()
-        if uppermsg == "A1" or "A2" or "A3" or "B1" or "B2" or "B3" or "C1" or "C2" or "C3":
+        if "A1" or "A2" or "A3" or "B1" or "B2" or "B3" or "C1" or "C2" or "C3" in uppermsg:
             # In der Datenbank wird geschaut ob der NachrichtenAutor auch ein aktives Battle auf der Guild hat
             botdbc.execute("SELECT * FROM activebattle WHERE guild_id = " + str(message.guild.id) + " AND turn_id = " + str(message.author.id))
             activebattle = botdbc.fetchone()
@@ -231,17 +248,12 @@ if botdb:
                 opponent = await client.fetch_user(activebattle["opponent_id"])
                 challanger = await client.fetch_user(activebattle["challanger_id"])
                 data = json.loads(activebattle["json_field"])
-            else:
-                return
 
             if data[uppermsg[0]][uppermsg[1]] == "0":
                 if activebattle["turn_id"] == str(opponent.id):
                     data[uppermsg[0]][uppermsg[1]] = "2"
                 elif activebattle["turn_id"] == str(challanger.id):
                     data[uppermsg[0]][uppermsg[1]] = "1"
-                else:
-                    print("An error occured while trying to update the field!")
-                    return
             else:
                 error_msg = "Nein"
                     
@@ -267,6 +279,7 @@ if botdb:
                     winner = challanger
                 elif data["B"]["2"] == "2":
                     winner = opponent
+
             tie = False
             if not winner:
                 tie_number = 0
@@ -353,33 +366,6 @@ if botdb:
                 response.set_author(name=message.author.name,icon_url=message.author.avatar_url)
                 await message.channel.send(embed = response)
                 response = ""
-            return
-
-        # Andere Antworten auf Nachrichten
-        
-        # LISTROLES COMMAND (aktuell nicht funktional)
-        if message.content == "!listroles":
-            # Füge Haken zu nachricht des sender (als bestätigung)
-            await message.add_reaction("✅")
-
-            # Hole alle Rollen auf diesem Server ein
-            guild = client.get_guild(message.guild.id)
-            guild_roles = []
-
-            # Gebe die Rollen umgekehrt aus (umgekehrt weil sie sonst nicht in der Richtung wo es in der Teilnehmerleiste ist ausgegeben werden)
-            for role in reversed(guild.roles):
-                # Rollen werden einzeln zu der variable hinzugefügt
-                guild_roles.append(role.name + "\n")
-
-            # Die Antwort wird als Embed mit allen Rollen erstellt und geschickt
-            response = discord.Embed(
-                title = "List of all roles:",
-                description = ''.join(guild_roles),
-                colour = discord.Colour.blue()
-            )
-            await message.channel.send("Here is a list of all roles on this server",embed = response)
-            response = ""
-
             return
 
     ## DEFINETLY NOT FINISHED -> If you react to the configured message with ANY emoji, the bot reacts with a check_mark
