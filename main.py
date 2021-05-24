@@ -378,7 +378,6 @@ if botdb:
                 response.set_footer(text="Want your own battle? !tictactoe @USERNAME")
                 await message.channel.send(embed = response)
                 response = ""
-
             
             # Battle Win
             elif winner and not error_msg and not tie:
