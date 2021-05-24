@@ -7,16 +7,17 @@ import json
 import random
 import mysql
 import mysql.connector as mysql
+import traceback
+import datetime
 
 botdb = mysql.connect(
-    host="192.168.55.10",
-    user="iqbot",
-    password=database_password,
-    database="iqbot"
+host="192.168.55.10",
+user="iqbot",
+password=database_password,
+database="iqbot"
 )
-
 if botdb:
-    botdbc = botdb.cursor(dictionary=True)
+    botdbc = botdb.cursor(dictionary=True,buffered=True)
 
     # Discord Client Init
     client = discord.Client()
@@ -75,6 +76,110 @@ if botdb:
                         finished_message+="| 🔵 "
                         count+=1
         return "" + finished_message
+    
+    async def new_request(temp_guild_id, temp_channel_id, temp_challanger_id, temp_opponent_id, rematch):
+        # Hier wird festgelegt welcher Nuitzer welcher ist
+        opponent = await client.fetch_user(temp_opponent_id)
+        challanger = await client.fetch_user(temp_challanger_id)
+        channel = client.get_channel(temp_channel_id)
+
+        if opponent.id == challanger.id:
+            error_msg = "Cant send yourself a battle request!"
+
+        botdbc.execute("SELECT * FROM battlerequests WHERE guild_id = " + str(temp_guild_id) + " AND opponent_id = " + str(temp_opponent_id) + " ORDER BY date")
+        battle_request = botdbc.fetchall()
+        if battle_request is not None:
+            for i in battle_request:
+                if i["date"] < datetime.datetime.now()-datetime.timedelta(seconds=30):
+                    sql_deleterequest = "DELETE FROM battlerequests WHERE id = " + str(i["id"])
+                    botdbc.execute(sql_deleterequest)
+                    botdb.commit()
+
+        # Hier wird in der Datenbank nachgeschaut, ob der Nutzer schon eine aktive Anfrage hat
+        botdbc.execute("SELECT challanger_id FROM battlerequests WHERE guild_id = " + str(temp_guild_id) + " AND opponent_id = " + str(opponent.id) + " OR challanger_id = " + str(challanger.id))
+        check_battle = botdbc.fetchone()
+
+        # Wenn der Nutzer keine Anfrage hat, dann
+        if check_battle is None:
+
+            if rematch:
+                temp_title = "Rematch:"
+            else:
+                temp_title = "Challange:"
+
+            # Nachricht wird als Embed erstellt und geschickt
+            response=discord.Embed(title=temp_title, color=0x00ff00)
+            response.add_field(name= challanger.name + " vs " + opponent.name, value="Their battle will be legendary!", inline=False)
+            response.add_field(name="To accept this battle:", value="!tictactoe accept", inline=False)
+            response.set_author(name=challanger.name,icon_url=challanger.avatar_url)
+            temp_msg = await channel.send(embed = response)
+            await temp_msg.add_reaction("✅")
+            response = ""
+
+            sql_battlerequest = "INSERT INTO battlerequests (guild_id, opponent_id, challanger_id, message_id) VALUES (%s, %s, %s, %s)"
+            val_battlerequest = (temp_guild_id, opponent.id, challanger.id, temp_msg.id)
+            botdbc.execute(sql_battlerequest, val_battlerequest)
+            botdb.commit()
+
+        # Falls der Nutzer bereits eine Anfrage hat        
+        else:
+            error_msg = "This user is currently in a battle!"
+
+    async def init_game(temp_guild_id, temp_author_id, temp_channel_id):
+        # Schaue in der Datenbank nach, ob eine Anfrage an den Nutzer geschickt wurde  
+        guild = client.get_guild(temp_guild_id)
+        channel = client.get_channel(temp_channel_id)
+        botdbc.execute("SELECT challanger_id FROM battlerequests WHERE guild_id = " + str(guild.id) + " AND opponent_id = " + str(temp_author_id))
+        battlerequest = botdbc.fetchone()
+
+        if battlerequest is None:
+
+            # Keine Anfrage wurde gefunden, also error!
+            error_msg = "You dont have a open battle request! Challange somebody with: !tictactoe @USERNAME"
+
+        else:
+            # Eine Anfrage wurde gefunden, jetzt wird ein Spiel initiiert!
+            # Schauen ob Nutzer auch teil des Servers ist (für Multiple Server funktionalität)
+            if await guild.fetch_member(battlerequest["challanger_id"]) is not None:
+
+                # Nutzer werden festgelegt (Diesen Prozess reduzieren)
+                challanger = await client.fetch_user(battlerequest["challanger_id"])
+                opponent = await client.fetch_user(temp_author_id)
+
+                # Fügt hinzu, wer Challanger (c) und wer Oponent (o)
+                starterlist = ["o", "c"]
+                starter = random.choice(starterlist)
+
+                # Festlegen wer wer ist u. in Datenbank schreiben (Prozess reduzieren)
+                if starter == "o":
+                    turn_id = opponent.id
+                elif starter == "c":
+                    turn_id = challanger.id
+
+                # Anfrage des Battles wird aus der Datenbank gelöscht
+                sql_deleterequest = "DELETE FROM battlerequests WHERE guild_id = " + str(guild.id) + " AND challanger_id = " + str(challanger.id) + " AND opponent_id = " + str(opponent.id)
+                botdbc.execute(sql_deleterequest)
+                botdb.commit()
+
+                # leeres Feld wird als json festgelegt
+                empty_json_field = '{"A": {"1": "0", "2": "0", "3": "0"}, "B": {"1": "0", "2": "0", "3": "0"}, "C": {"1": "0", "2": "0", "3": "0"}}'
+                empty_field = field(json.loads(empty_json_field))
+
+                # Alle Informationen werden in as Aktive Battle Datenbank geschrieben
+                sql_battle = "INSERT INTO activebattle (guild_id, opponent_id, challanger_id, json_field, turn_id) VALUES (%s, %s, %s, %s, %s)"
+                val_battle = (guild.id, opponent.id, challanger.id, empty_json_field, turn_id)
+                botdbc.execute(sql_battle, val_battle)
+                botdb.commit()
+
+                # Die Antwort auf die Nachricht mit dem aktiven Spielfeld als Inhalt wird als Embed hier vorbereitet und geschickt
+                response=discord.Embed(title="Active Battle", color=0xb00000)
+                response.set_author(name=opponent.name,icon_url=opponent.avatar_url)
+                response.add_field(name="🔴" + challanger.name + " vs 🔵" + opponent.name, value=empty_field, inline=True)
+                response.add_field(name="Usage:", value="| A1 | A2 | A3 |\n| B1 | B2 | B3 |\n| C1 | C2 | C3 |\nTo place your block on a field, write the field number", inline=False)
+                response.add_field(name="Whose turn is it:", value=(await client.fetch_user(turn_id)).name, inline=False)
+                response.set_footer(text="Want your own battle? !tictactoe @USERNAME")
+                await channel.send(embed = response)
+                response = ""
 
     @client.event
     async def on_message(message):
@@ -115,6 +220,16 @@ if botdb:
             await message.channel.send("Here is a list of all roles on this server",embed = response)
             response = ""
 
+        elif message.content == "!test":
+            response=discord.Embed(title="{null}", color=0xb00000)
+            response.set_author(name=message.author.name,icon_url=message.author.avatar_url)
+            response.add_field(name="🔴" + "{null}" + " vs 🔵" + "{null}", value="{null}", inline=True)
+            response.add_field(name="Usage:", value="This\nis\na\ntestcommand\nlol", inline=False)
+            response.add_field(name="Whose turn is it:", value="{null}", inline=False)
+            response.set_footer(text="[loooooooooooooooooool]")
+            await message.channel.send(":dancedancedance: ",embed = response)
+            response = ""
+
         elif message.content.startswith("!tictactoe"):
 
             # Der Command "tictactoe" wird von der Nachricht entfernt, damit am Ende nur die Parameter übrig bleiben
@@ -125,59 +240,7 @@ if botdb:
 
             # Schauen ob ein Nutzer markiert wurde (@) und ob "accept" geschickt wurde
             if "accept" in arg1 and not "@" in arg1:
-
-                # Schaue in der Datenbank nach, ob eine Anfrage an den Nutzer geschickt wurde
-                botdbc.execute("SELECT challanger_id FROM battlerequests WHERE guild_id = " + str(message.guild.id) + " AND opponent_id = " + str(message.author.id))
-                battlerequest = botdbc.fetchone()
-
-                if battlerequest is None:
-
-                    # Keine Anfrage wurde gefunden, also error!
-                    error_msg = "You dont have a open battle request! Challange somebody with: !tictactoe @USERNAME"
-
-                else:
-                    # Eine Anfrage wurde gefunden, jetzt wird ein Spiel initiiert!
-                    # Schauen ob Nutzer auch teil des Servers ist (für Multiple Server funktionalität)
-                    if await message.guild.fetch_member(battlerequest["challanger_id"]) is not None:
-
-                        # Nutzer werden festgelegt (Diesen Prozess reduzieren)
-                        challanger = await client.fetch_user(battlerequest["challanger_id"])
-                        opponent = message.author
-
-                        # Fügt hinzu, wer Challanger (c) und wer Oponent (o)
-                        starterlist = ["o", "c"]
-                        starter = random.choice(starterlist)
-
-                        # Festlegen wer wer ist u. in Datenbank schreiben (Prozess reduzieren)
-                        if starter == "o":
-                            turn_id = opponent.id
-                        elif starter == "c":
-                            turn_id = challanger.id
-
-                        # Anfrage des Battles wird aus der Datenbank gelöscht
-                        sql_deleterequest = "DELETE FROM battlerequests WHERE guild_id = " + str(message.guild.id) + " AND challanger_id = " + str(challanger.id) + " AND opponent_id = " + str(opponent.id)
-                        botdbc.execute(sql_deleterequest)
-                        botdb.commit()
-
-                        # leeres Feld wird als json festgelegt
-                        empty_json_field = '{"A": {"1": "0", "2": "0", "3": "0"}, "B": {"1": "0", "2": "0", "3": "0"}, "C": {"1": "0", "2": "0", "3": "0"}}'
-                        empty_field = field(json.loads(empty_json_field))
-
-                        # Alle Informationen werden in as Aktive Battle Datenbank geschrieben
-                        sql_battle = "INSERT INTO activebattle (guild_id, opponent_id, challanger_id, json_field, turn_id) VALUES (%s, %s, %s, %s, %s)"
-                        val_battle = (message.guild.id, opponent.id, challanger.id, empty_json_field, str(turn_id))
-                        botdbc.execute(sql_battle, val_battle)
-                        botdb.commit()
-
-                        # Die Antwort auf die Nachricht mit dem aktiven Spielfeld als Inhalt wird als Embed hier vorbereitet und geschickt
-                        response=discord.Embed(title="Active Battle", color=0xb00000)
-                        response.set_author(name=message.author.name,icon_url=message.author.avatar_url)
-                        response.add_field(name="🔴" + challanger.name + " vs 🔵" + opponent.name, value=empty_field, inline=True)
-                        response.add_field(name="Usage:", value="| A1 | A2 | A3 |\n| B1 | B2 | B3 |\n| C1 | C2 | C3 |\nTo place your block on a field, write the field number", inline=False)
-                        response.add_field(name="Whose turn is it:", value=(await client.fetch_user(turn_id)).name, inline=False)
-                        response.set_footer(text="Want your own battle? !tictactoe @USERNAME")
-                        await message.channel.send(embed = response)
-                        response = ""
+                await init_game(message.guild.id, message.author.id, message.channel.id)
 
             # Battle verlassen
             elif arg1 == "leave":
@@ -212,45 +275,12 @@ if botdb:
                     # Hier wird geprüft ob der Nutzer tatsälich auf dem DiscordServer ist u. existiert.
                     try:
                         if await message.guild.fetch_member(arg1) is not None:
-
-                            # Hier wird festgelegt welcher Nuitzer welcher ist (SINN????)
-                            opponent = await client.fetch_user(arg1)
-                            challanger = message.author
-
-                            if opponent.id == challanger.id:
-                                error_msg = "Cant send yourself a battle request!"
-
-                            # Hier wird in der Datenbank nachgeschaut, ob der Nutzer schon eine aktive Anfrage hat
-                            botdbc.execute("SELECT challanger_id FROM battlerequests WHERE guild_id = " + str(message.guild.id) + " AND opponent_id = " + str(message.author.id))
-                            check_battle = botdbc.fetchone()
-
-                            # Wenn der Nutzer keine Anfrage hat, dann
-                            if check_battle is None:
-
-                            # Check ob Nutzer versucht sich selbst eine Anfrage zu schauen
-
-                                # Die Anfrage wird in die Datenbank aufgenommen
-                                error = False
-                                sql_battlerequest = "INSERT INTO battlerequests (guild_id, opponent_id, challanger_id) VALUES (%s, %s, %s)"
-                                val_battlerequest = (message.guild.id, opponent.id, challanger.id)
-                                botdbc.execute(sql_battlerequest, val_battlerequest)
-                                botdb.commit()
-
-                                # Nachricht wird als Embed erstellt und geschickt
-                                response=discord.Embed(title="Challange", color=0x00ff00)
-                                response.add_field(name= challanger.name + " vs " + opponent.name, value="Their battle will be legendary!", inline=False)
-                                response.add_field(name="To accept this battle:", value="!tictactoe accept", inline=False)
-                                response.set_author(name=message.author.name,icon_url=message.author.avatar_url)
-                                await message.channel.send(embed = response)
-                                response = ""
-
-                            # Falls der Nutzer bereits eine Anfrage hat        
-                            else:
-                                error_msg = "This user is currently in a battle!"
+                            await new_request(message.guild.id, message.channel.id, message.author.id, arg1, False)
                         
                     # Falls der Nutzer nicht gefunden wurde
                     except:
-                        error_msg = "Error"
+                        traceback.print_exc()
+                        error_msg = "Exception Error!"
             
             # Hier werden Nachrichten verschickt die mit der Variable "error vorher festgelegt wurden"
 
@@ -329,14 +359,13 @@ if botdb:
                 field_send = field(data)
                 
                 if activebattle["turn_id"] == str(opponent.id):
-                    turn_id = str(challanger.id)
+                    turn_id = challanger.id
                 elif activebattle["turn_id"] == str(challanger.id):
-                    turn_id = str(opponent.id)
-
+                    turn_id = opponent.id
             
                 # Aktualisiertes Feld wird in die Datenbank geschrieben
                 sql_update_active_battle = "UPDATE activebattle SET json_field = %s, turn_id = %s WHERE challanger_id = %s AND guild_id = %s AND opponent_id = %s"
-                val_update_active_battle = (json.dumps(data), str(turn_id), str(activebattle["challanger_id"]), str(message.guild.id), str(activebattle["opponent_id"]))
+                val_update_active_battle = (json.dumps(data), turn_id, activebattle["challanger_id"], message.guild.id, activebattle["opponent_id"])
                 botdbc.execute(sql_update_active_battle, val_update_active_battle)
                 botdb.commit()
 
@@ -362,12 +391,18 @@ if botdb:
                 botdbc.execute(sql_delete_battle)
                 botdb.commit()
 
+                sql_game_log = "INSERT INTO game_log (guild_id, challanger_id, opponent_id, winner_id, message_id) VALUES (%s, %s, %s, %s, %s)"
+                sql_game_log_values = (message.guild.id, challanger.id, opponent.id, winner.id, message.id)
+                botdbc.execute(sql_game_log, sql_game_log_values)
+                botdb.commit()
+
                 # Winner Nachricht wird als Embed erstellt und gesendet
                 response=discord.Embed(title=winner.name + " has won!", color=0xb00000)
                 response.set_author(name=message.author.name,icon_url=message.author.avatar_url)
                 response.add_field(name="🔴" + challanger.name + " vs 🔵" + opponent.name, value=field_send, inline=True)
-                response.set_footer(text="Want your own battle? !tictactoe @USERNAME")
-                await message.channel.send(embed = response)
+                response.set_footer(text="Press 🔄 for a rematch (available for 10 seconds)")
+                temp_msg = await message.channel.send(embed = response)
+                await temp_msg.add_reaction("🔄")
                 response = ""
 
             # Falls Unentschieden    
@@ -380,12 +415,18 @@ if botdb:
                 botdbc.execute(sql_delete_battle)
                 botdb.commit()
 
+                sql_game_log = "INSERT INTO game_log (guild_id, challanger_id, opponent_id, winner_id, message_id) VALUES (%s, %s, %s, %s, %s)"
+                sql_game_log_values = (message.guild.id, challanger.id, opponent.id, winner.id, message.id)
+                botdbc.execute(sql_game_log, sql_game_log_values)
+                botdb.commit()
+
                 # Erstelle Untenschieden Nachricht und schicke sie ab
                 response=discord.Embed(title="Tie!", color=0xb00000)
                 response.set_author(name=message.author.name,icon_url=message.author.avatar_url)
                 response.add_field(name="🔴" + challanger.name + " vs 🔵" + opponent.name, value=field_send, inline=True)
-                response.set_footer(text="Want your own battle? !tictactoe @USERNAME")
-                await message.channel.send(embed = response)
+                response.set_footer(text="Press 🔄 for a rematch (available for 10 seconds)")
+                temp_msg = await message.channel.send(embed = response)
+                await temp_msg.add_reaction("🔄")
                 response = ""
 
             # Erstelle und sende Error Nachricht, falls einer aufgetreten sein sollte    
@@ -393,17 +434,43 @@ if botdb:
                 await send_error_msg(error_msg, message)
             return
 
-    ## DEFINETLY NOT FINISHED -> If you react to the configured message with ANY emoji, the bot reacts with a check_mark
-    # @client.event
-    # async def on_raw_reaction_add(payload):
-    #    if payload.message_id != react_to_get_role_msg:
-    #        return
-    #    else:
-    #        message = await client.get_channel(payload.channel_id).fetch_message(payload.message_id)
-    #        user = await client.get_user(payload.user_id)
-    #        await message.add_reaction("✅")
-    #        return
+    @client.event
+    async def on_raw_reaction_add(payload):
+        if payload.member.bot:
+            return
+        else:
+            if payload.emoji.name == "🔄":
+                botdbc.execute("SELECT * FROM game_log WHERE guild_id = " + str(payload.guild_id) + " AND message_id = " + str(payload.message_id) + " OR challanger_id = " + str(payload.member.id) + " OR opponent_id = " + str(payload.member.id) + " ORDER BY date")
+                game_log = botdbc.fetchone()
+
+                if game_log is None:
+                    return
+                elif game_log["date"] < datetime.datetime.now()-datetime.timedelta(seconds=10):
+                    return
+                else:
+                    await new_request(game_log["guild_id"], payload.channel_id, game_log["challanger_id"], game_log["opponent_id"], True)
+            elif payload.emoji.name == "✅":
+                botdbc.execute("SELECT * FROM battlerequests WHERE guild_id = " + str(payload.guild_id) + " AND message_id = " + str(payload.message_id) + " AND opponent_id = " + str(payload.member.id) + " ORDER BY date")
+                battle_request = botdbc.fetchone()
+
+                if battle_request is None:
+                    return
+                elif battle_request["date"] < datetime.datetime.now()-datetime.timedelta(seconds=30):
+
+                    sql_deleterequest = "DELETE FROM battlerequests WHERE guild_id = " + str(payload.guild.id) + " AND challanger_id = " + str(battle_request["challanger_id"]) + " AND opponent_id = " + str(payload.member.id)
+                    botdbc.execute(sql_deleterequest)
+                    botdb.commit()
+
+                    response=discord.Embed(title="❌ You dont have an open request!", color=0xff0000)
+                    response.set_author(name=payload.member.name,icon_url=payload.member.avatar_url)
+                    response.set_footer(text="Request expire after 30 seconds!")
+                    await payload.channel.send(embed = response)
+                    return
+                else:
+                    await init_game(payload.guild_id, payload.member.id, payload.channel_id)
+
+
 
     client.run(token)
 else:
-    print("DB Not Working")
+    exit()
